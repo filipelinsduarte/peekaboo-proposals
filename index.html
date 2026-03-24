@@ -58,7 +58,7 @@ body{background:#fff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,
 </head>
 <body>
 <script>
-(function(){
+(async function(){
 'use strict';
 
 function getLuminance(hex){
@@ -84,8 +84,39 @@ function renderError(msg){
 const hash=window.location.hash.slice(1);
 if(!hash){renderError('No proposal data found. Please generate a link from the Proposal Builder.');return;}
 
+async function decodeState(encoded){
+  // Restore base64url → base64
+  let b64=encoded.replace(/-/g,'+').replace(/_/g,'/');
+  // Add padding if needed
+  while(b64.length%4)b64+='=';
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+
+  // Try compressed (deflate-raw) first
+  try{
+    const stream=new DecompressionStream('deflate-raw');
+    const writer=stream.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const chunks=[];
+    const reader=stream.readable.getReader();
+    while(true){const{done,value}=await reader.read();if(done)break;chunks.push(value);}
+    const total=chunks.reduce((a,c)=>a+c.length,0);
+    const buf=new Uint8Array(total);
+    let off=0;for(const c of chunks){buf.set(c,off);off+=c.length;}
+    const text=new TextDecoder().decode(buf);
+    return JSON.parse(text);
+  }catch(e){}
+
+  // Fallback: legacy format (btoa(encodeURIComponent(json)))
+  try{return JSON.parse(decodeURIComponent(atob(b64)));}catch(e){}
+
+  throw new Error('Could not decode proposal data');
+}
+
 let state;
-try{state=JSON.parse(decodeURIComponent(atob(hash)));}
+try{state=await decodeState(hash);}
 catch(e){renderError('Could not decode proposal data. The link may be corrupted.');return;}
 
 // Normalise to options array (support legacy optionA/optionB)
@@ -284,4 +315,3 @@ document.getElementById('downloadBtn').addEventListener('click',function(){
 </script>
 </body>
 </html>
-

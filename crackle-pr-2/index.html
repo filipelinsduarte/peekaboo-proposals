@@ -56,7 +56,6 @@ body{background:#fff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,
 }
 </style>
 <script>window.__PROPOSAL_DATA__="vZBBTwIxEIX_yuZ5bcy6ywbSm4IhJoIbhZPhULojVLvt2h2MG8J_N0UwxuiFg8fO63xv8m2hrSHH82AhoYPSL5aacK59DXHIpqomSAw_w6S8h8AyKFcNvfUBEmd52hv0BhDwDRvvWsjHLaxaUoSWwdcNJ7O4btwqGSljuyOihcxSgWb_py0pXMUpZFYIPAV63ZDT3e2BdNz8CiYby6axhgJkngrUviIb2zFcKx6XMwiMqTbOQKCk0Fh6NxwRY-9XlpLLm7vvj2TiK8JCgEnVD6S4hcTcWVMbpgqxwPHadmUwmiD7xf50o2nqmSA5bOgwuKyeNy3X5LjUDJllApViVXrjIrRfpGm6E39Lun6j0CVZMlJde5KrH4BflV0U_64s7xcnKsujs91CwHmmWILdBw";</script>
-<script>if(!location.hash)location.hash=window.__PROPOSAL_DATA__;</script>
 </head>
 <body>
 <script>
@@ -83,7 +82,7 @@ function renderError(msg){
   document.body.innerHTML='<div class="error-wrap"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><h2>Proposal Not Found</h2><p>'+esc(msg)+'</p></div>';
 }
 
-const hash=window.location.hash.slice(1);
+const hash=(window.__PROPOSAL_DATA__)||window.location.hash.slice(1);
 if(!hash){renderError('No proposal data found. Please generate a link from the Proposal Builder.');return;}
 
 async function decodeState(encoded){

@@ -55,7 +55,7 @@ body{background:#fff;color:#111827;font-family:-apple-system,BlinkMacSystemFont,
   .price-cell{color:#000!important;-webkit-print-color-adjust:exact}
 }
 </style>
-<script>window.__PROPOSAL_DATA__="vZBBTwIxEIX_yuZ5bcy6ywbSm4IhJoIbhZPhULojVLvt2h2MG8J_N0UwxuiFg8fO63xv8m2hrSHH82AhoYPSL5aacK59DXHIpqomSAw_w6S8h8AyKFcNvfUBEmd52hv0BhDwDRvvWsjHLaxaUoSWwdcNJ7O4btwqGSljuyOihcxSgWb_py0pXMUpZFYIPAV63ZDT3e2BdNz8CiYby6axhgJkngrUviIb2zFcKx6XMwiMqTbOQKCk0Fh6NxwRY-9XlpLLm7vvj2TiK8JCgEnVD6S4hcTcWVMbpgqxwPHadmUwmiD7xf50o2nqmSA5bOgwuKyeNy3X5LjUDJllApViVXrjIrRfpGm6E39Lun6j0CVZMlJde5KrH4BflV0U_64s7xcnKsujs91CwHmmWILdBw";</script>
+<script>window.__PROPOSAL_STATE__={"clientUrl":"cracklepr.com","clientName":"Crackle PR","brandColor":"#304848","options":[{"label":"Prompt Tracking Daily","brands":20,"promptsPerBrand":25,"frequencyLabel":"Daily","frequencyMultiplier":30,"models":["ChatGPT","Gemini","Perplexity","Google AIO","Google AI Mode"],"teamSeats":"Unlimited","monthlyPrice":750,"priceNote":true,"priceAdjustmentPct":22,"dataPoints":75000},{"label":"Prompt Tracking Every 2 Days","brands":20,"promptsPerBrand":25,"frequencyLabel":"Every 2 Days","frequencyMultiplier":15,"models":["ChatGPT","Gemini","Perplexity","Google AIO","Google AI Mode"],"teamSeats":"Unlimited","monthlyPrice":375,"priceNote":true,"priceAdjustmentPct":22,"dataPoints":37500}],"notes":""};</script>
 </head>
 <body>
 <script>
@@ -82,43 +82,39 @@ function renderError(msg){
   document.body.innerHTML='<div class="error-wrap"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><h2>Proposal Not Found</h2><p>'+esc(msg)+'</p></div>';
 }
 
-const hash=(window.__PROPOSAL_DATA__)||window.location.hash.slice(1);
-if(!hash){renderError('No proposal data found. Please generate a link from the Proposal Builder.');return;}
-
-async function decodeState(encoded){
-  // Restore base64url → base64
-  let b64=encoded.replace(/-/g,'+').replace(/_/g,'/');
-  // Add padding if needed
-  while(b64.length%4)b64+='=';
-  const bin=atob(b64);
-  const bytes=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-
-  // Try compressed (deflate-raw) first
-  try{
-    const stream=new DecompressionStream('deflate-raw');
-    const writer=stream.writable.getWriter();
-    writer.write(bytes);
-    writer.close();
-    const chunks=[];
-    const reader=stream.readable.getReader();
-    while(true){const{done,value}=await reader.read();if(done)break;chunks.push(value);}
-    const total=chunks.reduce((a,c)=>a+c.length,0);
-    const buf=new Uint8Array(total);
-    let off=0;for(const c of chunks){buf.set(c,off);off+=c.length;}
-    const text=new TextDecoder().decode(buf);
-    return JSON.parse(text);
-  }catch(e){}
-
-  // Fallback: legacy format (btoa(encodeURIComponent(json)))
-  try{return JSON.parse(decodeURIComponent(atob(b64)));}catch(e){}
-
-  throw new Error('Could not decode proposal data');
-}
-
+// Fast path: server-decoded state embedded as plain JSON (published proposals)
 let state;
-try{state=await decodeState(hash);}
-catch(e){renderError('Could not decode proposal data. The link may be corrupted.');return;}
+if(window.__PROPOSAL_STATE__){
+  state=window.__PROPOSAL_STATE__;
+}else{
+  // Local preview path: decode from URL hash
+  const hash=window.location.hash.slice(1);
+  if(!hash){renderError('No proposal data found. Please generate a link from the Proposal Builder.');return;}
+
+  async function decodeState(encoded){
+    let b64=encoded.replace(/-/g,'+').replace(/_/g,'/');
+    while(b64.length%4)b64+='=';
+    const bin=atob(b64);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    try{
+      const stream=new DecompressionStream('deflate-raw');
+      const writer=stream.writable.getWriter();
+      writer.write(bytes);writer.close();
+      const chunks=[];const reader=stream.readable.getReader();
+      while(true){const{done,value}=await reader.read();if(done)break;chunks.push(value);}
+      const total=chunks.reduce((a,c)=>a+c.length,0);
+      const buf=new Uint8Array(total);let off=0;
+      for(const c of chunks){buf.set(c,off);off+=c.length;}
+      return JSON.parse(new TextDecoder().decode(buf));
+    }catch(e){}
+    try{return JSON.parse(decodeURIComponent(atob(b64)));}catch(e){}
+    throw new Error('Could not decode proposal data');
+  }
+
+  try{state=await decodeState(hash);}
+  catch(e){renderError('Could not decode proposal data. The link may be corrupted.');return;}
+}
 
 // Normalise to options array (support legacy optionA/optionB)
 let options=state.options||[];
